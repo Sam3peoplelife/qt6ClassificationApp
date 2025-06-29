@@ -17,7 +17,7 @@ You can select a dataset folder, train up to 3 different CNN models, and classif
 
 ## App Preview
 
-
+![image](https://github.com/user-attachments/assets/55e4da09-6083-4bf7-9442-54989409abe3)
 
 ---
 
