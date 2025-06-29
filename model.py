@@ -27,6 +27,7 @@ test_data = tf.keras.preprocessing.image_dataset_from_directory(
     batch_size=32,
     label_mode='categorical'
 )
+
 # Model definition
 model1 = models.Sequential([
     layers.Input(shape=(224, 224, 3)),
@@ -106,10 +107,10 @@ def load_models(model_paths):
 def predict_image(model_path, img_path, class_names):
     img = image.load_img(img_path, target_size=(224, 224))
     x = image.img_to_array(img)
-    x = x / 255.0
     x = np.expand_dims(x, axis=0)
     model = models.load_model(model_path)
     preds = model.predict(x)
+    print("Predicted probabilities:", preds)
     pred_class = class_names[np.argmax(preds)]
     print(f"Predicted class: {pred_class}")
 
@@ -122,7 +123,17 @@ def main(number_of_models=3):
     return results, save_paths
 
 if __name__ == "__main__":
-    # Accept number of models from command line
+    # Prediction mode
+    if len(sys.argv) > 1 and sys.argv[1] == "--predict":
+        img_path = sys.argv[2]
+        model_index = int(sys.argv[3])
+        model_path = os.path.join('models', f'model_{model_index}.h5')
+        train_dir = directory + '/train'
+        class_names = sorted(os.listdir(train_dir))
+        predict_image(model_path, img_path, class_names)
+        sys.exit(0)
+
+    # Training mode
     if len(sys.argv) > 1:
         try:
             n_models = int(sys.argv[1])
@@ -134,13 +145,3 @@ if __name__ == "__main__":
     results, save_paths = main(n_models)
     for i, (loss, accuracy) in enumerate(results):
         print(f"Model {i+1}: Accuracy = {accuracy}")
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--predict":
-        img_path = sys.argv[2]
-        model_index = int(sys.argv[3])  # 1-based index
-        model_path = os.path.join('models', f'model_{model_index}.h5')
-        # Get class names from train_dir
-        train_dir = directory + '/train'
-        class_names = sorted(os.listdir(train_dir))
-        predict_image(model_path, img_path, class_names)
-        sys.exit(0)

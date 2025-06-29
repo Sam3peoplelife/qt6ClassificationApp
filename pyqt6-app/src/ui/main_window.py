@@ -1,6 +1,4 @@
-from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox, QSpinBox, QHBoxLayout, QComboBox
-)
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox, QSpinBox, QHBoxLayout, QComboBox
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 import subprocess
@@ -44,7 +42,6 @@ class MainWindow(QMainWindow):
         self.result_label = QLabel("")
         self.layout.addWidget(self.result_label)
 
-        # --- New UI for image classification ---
         self.image_label = QLabel("No image selected")
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setFixedSize(224, 224)
@@ -114,7 +111,7 @@ class MainWindow(QMainWindow):
                 self.select_image_button.setEnabled(False)
         except subprocess.CalledProcessError as e:
             self.result_label.setText("Classification failed.")
-            QMessageBox.critical(self, "Error", f"Classification failed:\n{e.stderr}")
+            #QMessageBox.critical(self, "Error", f"Classification failed:\n{e.stderr}")
 
     def select_image(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.png *.jpg *.jpeg *.bmp)")
@@ -133,7 +130,7 @@ class MainWindow(QMainWindow):
         if not self.selected_image_path:
             QMessageBox.warning(self, "Error", "Please select an image first.")
             return
-        model_index = self.model_choice.currentIndex() + 1  # Model 1, 2, or 3
+        model_index = self.model_choice.currentIndex() + 1
 
         # Call model.py with --predict argument, passing image path and model index
         try:
@@ -146,6 +143,7 @@ class MainWindow(QMainWindow):
             )
             match = re.search(r'Predicted class: (.+)', result.stdout)
             if match:
+                QMessageBox.information(self, "Prediction Result", f"Predicted class: {match.group(1)}")
                 self.classify_result_label.setText(f"Prediction: {match.group(1)}")
             else:
                 self.classify_result_label.setText("Prediction failed or not found.")
