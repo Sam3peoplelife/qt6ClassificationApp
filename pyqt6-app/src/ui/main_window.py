@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox, QSpinBox, QHBoxLayout, QComboBox
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox, QSpinBox, QHBoxLayout, QComboBox, QLineEdit
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 import subprocess
@@ -77,6 +77,28 @@ class MainWindow(QMainWindow):
         self.trained_models = 0
         self.selected_image_path = None
 
+        # For saving model manually
+        self.save_model_layout = QHBoxLayout()
+        self.save_model_label = QLabel("Save selected model as:")
+        self.save_model_label.setObjectName("save_model_label")
+        self.save_model_layout.addWidget(self.save_model_label)
+        self.save_model_name = QLineEdit()
+        self.save_model_name.setPlaceholderText("Enter model name (no extension)")
+        self.save_model_name.setObjectName("save_model_name")
+        self.save_model_layout.addWidget(self.save_model_name)
+        self.save_model_button = QPushButton("💾 Save Model")
+        self.save_model_button.clicked.connect(self.save_model)
+        self.save_model_button.setEnabled(False)
+        self.save_model_layout.addWidget(self.save_model_button)
+        self.layout.addLayout(self.save_model_layout)
+
+        # For uploading a model
+        self.upload_model_button = QPushButton("⬆️ Upload Model (.h5)")
+        self.upload_model_button.clicked.connect(self.upload_model)
+        self.layout.addWidget(self.upload_model_button)
+        self.uploaded_model_path = None
+        self.uploaded_model_name = None
+
         self.setStyleSheet("""
             QWidget {
                 background-color: #f5f6fa;
@@ -86,6 +108,21 @@ class MainWindow(QMainWindow):
             QLabel {
                 color: #222f3e;
                 font-size: 15px;
+            }
+            #save_model_label {
+                color: #20bf6b;
+                font-size: 15px;
+                font-weight: bold;
+                margin-right: 8px;
+            }
+            #save_model_name {
+                min-width: 120px;
+                font-size: 15px;
+                color: #2f3542;
+                background-color: #fff;
+                border: 1.5px solid #20bf6b;
+                border-radius: 6px;
+                padding: 4px 8px;
             }
             #spin_label {
                 color: #576574;
@@ -217,11 +254,14 @@ class MainWindow(QMainWindow):
                     self.model_choice.addItem(f"Model {i+1}")
                 self.select_image_button.setEnabled(True)
                 self.classify_button.setEnabled(False)
+                self.save_model_button.setEnabled(True)
             else:
                 self.result_label.setText("No accuracy results found.")
                 self.select_image_button.setEnabled(False)
+                self.save_model_button.setEnabled(False)
         except subprocess.CalledProcessError as e:
             self.result_label.setText("Classification failed.")
+            self.save_model_button.setEnabled(False)
 
     def select_image(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.png *.jpg *.jpeg *.bmp)")
@@ -240,21 +280,71 @@ class MainWindow(QMainWindow):
         if not self.selected_image_path:
             QMessageBox.warning(self, "Error", "Please select an image first.")
             return
-        model_index = self.model_choice.currentIndex() + 1
+        # If uploaded model is used, predict with it
+        if self.uploaded_model_path:
+            try:
+                result = subprocess.run(
+                    [sys.executable, os.path.abspath("../../model.py"), "--predict", self.selected_image_path, "1", self.uploaded_model_path],
+                    cwd=os.path.dirname(os.path.abspath("../../model.py")),
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                match = re.search(r'Predicted class: (.+)', result.stdout)
+                if match:
+                    self.classify_result_label.setText(f"Prediction (uploaded): <b>{match.group(1)}</b>")
+                else:
+                    self.classify_result_label.setText("Prediction failed or not found.")
+            except subprocess.CalledProcessError as e:
+                self.classify_result_label.setText("Prediction failed.")
+        else:
+            model_index = self.model_choice.currentIndex() + 1
+            # Call model.py with --predict argument, passing image path and model index
+            try:
+                result = subprocess.run(
+                    [sys.executable, os.path.abspath("../../model.py"), "--predict", self.selected_image_path, str(model_index)],
+                    cwd=os.path.dirname(os.path.abspath("../../model.py")),
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                match = re.search(r'Predicted class: (.+)', result.stdout)
+                if match:
+                    self.classify_result_label.setText(f"Prediction: <b>{match.group(1)}</b>")
+                else:
+                    self.classify_result_label.setText("Prediction failed or not found.")
+            except subprocess.CalledProcessError as e:
+                self.classify_result_label.setText("Prediction failed.")
 
-        # Call model.py with --predict argument, passing image path and model index
+    def save_model(self):
+        name = self.save_model_name.text().strip()
+        if not name:
+            QMessageBox.warning(self, "Error", "Please enter a model name.")
+            return
+        model_index = self.model_choice.currentIndex() + 1
+        src_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath("../../model.py")), "models", f"model_{model_index}.h5"))
+        save_dir = QFileDialog.getExistingDirectory(self, "Select directory to save model")
+        if not save_dir:
+            return
+        dst_path = os.path.join(save_dir, name + ".h5")
         try:
-            result = subprocess.run(
-                [sys.executable, os.path.abspath("../../model.py"), "--predict", self.selected_image_path, str(model_index)],
-                cwd=os.path.dirname(os.path.abspath("../../model.py")),
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            match = re.search(r'Predicted class: (.+)', result.stdout)
-            if match:
-                self.classify_result_label.setText(f"Prediction: <b>{match.group(1)}</b>")
-            else:
-                self.classify_result_label.setText("Prediction failed or not found.")
-        except subprocess.CalledProcessError as e:
-            self.classify_result_label.setText("Prediction failed.")
+            import shutil
+            shutil.copyfile(src_path, dst_path)
+            QMessageBox.information(self, "Success", f"Model saved as {dst_path}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to save model: {e}")
+
+    def upload_model(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Model File", "", "Keras Model (*.h5)")
+        if file_path:
+            self.uploaded_model_path = file_path
+            self.uploaded_model_name = os.path.basename(file_path)
+            self.classify_result_label.setText(f"Uploaded model: <b>{self.uploaded_model_name}</b>")
+            self.classify_button.setEnabled(True)
+            # Optionally, add to model_choice dropdown as a special entry
+            if self.model_choice.findText("Uploaded Model") == -1:
+                self.model_choice.addItem("Uploaded Model")
+                self.model_choice.setCurrentText("Uploaded Model")
+        else:
+            self.uploaded_model_path = None
+            self.uploaded_model_name = None
