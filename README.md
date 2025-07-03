@@ -5,13 +5,16 @@ You can select a dataset folder, train up to 3 different CNN models, and classif
 
 ---
 
+
 ## Features
 
 - 📁 Select your dataset directory (expects `train` and `test` subfolders)
 - 🔢 Choose how many models to train (1–3)
 - 🚀 Train models and view their accuracy
+- 💾 Save any trained model with a custom name
+- ⬆️ Upload a `.h5` model file and use it for prediction
 - 🖼️ Select an image and preview it
-- 🤖 Classify images using any trained model
+- 🤖 Classify images using any trained or uploaded model
 
 ---
 
